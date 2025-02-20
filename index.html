@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>AI Voice Chatbot</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: start;
+            min-height: 100vh;
+            margin: 0;
+            background-color: #f0f2f5;
+        }
+
+        #microphone-button {
+            background-color: #ffffff;
+            border: none;
+            border-radius: 50%;
+            width: 100px;
+            height: 100px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
+            transition: transform 0.2s ease-in-out;
+            outline: none;
+        }
+
+        #microphone-button:hover {
+            transform: scale(1.05);
+        }
+
+        #status-display {
+            margin-top: 20px;
+            font-style: italic;
+            color: #777;
+            min-height: 20px;
+        }
+    </style>
+</head>
+<body>
+
+    <button id="microphone-button" onclick="startSpeechRecognition()">
+        🎤
+    </button>
+
+    <div id="status-display"></div>
+
+    <script>
+        const microphoneButton = document.getElementById('microphone-button');
+        const statusDisplay = document.getElementById('status-display');
+        let recognition = null;
+        const synth = window.speechSynthesis;
+
+        function speakResponse(text, langCode) {
+            const utterThis = new SpeechSynthesisUtterance(text);
+            utterThis.lang = langCode;
+            synth.speak(utterThis);
+        }
+
+        function startSpeechRecognition() {
+            if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+                recognition = 'webkitSpeechRecognition' in window ? new webkitSpeechRecognition() : new SpeechRecognition();
+            } else {
+                alert("Speech recognition is not supported in this browser.");
+                return;
+            }
+
+            recognition.lang = 'en-US';
+            recognition.continuous = false;
+            recognition.interimResults = false;
+
+            recognition.onstart = () => {
+                microphoneButton.style.backgroundColor = "#e0f7fa";
+                statusDisplay.textContent = "Listening...";
+            };
+
+            recognition.onend = () => {
+                microphoneButton.style.backgroundColor = "#ffffff";
+                statusDisplay.textContent = "";
+            };
+
+            recognition.onresult = (event) => {
+                const transcript = event.results[0][0].transcript;
+                statusDisplay.textContent = "Processing...";
+                sendMessage(transcript);
+            };
+
+            recognition.start();
+        }
+
+        function sendMessage(userMessage) {
+            fetch('/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text: userMessage })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.response) {
+                    statusDisplay.textContent = "";
+                    speakResponse(data.response, data.language);
+                } else {
+                    statusDisplay.textContent = "Error: " + data.error;
+                }
+            })
+            .catch(() => {
+                statusDisplay.textContent = "Network error.";
+            });
+        }
+    </script>
+
+</body>
+</html>
